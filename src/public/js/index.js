@@ -2,7 +2,6 @@ let chatItems = document.querySelectorAll(".chat-item");
 let openChat = false;
 const CONTENT_CHAT = document.querySelector(".chat-window");
 const WELCOME_MESSAGE = document.querySelector(".welcome-message");
-
 chatItems.forEach(chatItem => {
     chatItem.addEventListener("click", (e) => {
         openChat = true;
