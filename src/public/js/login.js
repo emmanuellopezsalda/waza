@@ -22,12 +22,8 @@ btn.addEventListener("click", async (e) => {
     const name = document.querySelector("#name").value;
     const phone = document.querySelector("#phone").value;
     const result = await loginUser(name, phone);
-
     if (result.length > 0) {
-        // Guardar el id en una cookie, en lugar de localStorage
-        document.cookie = `userId=${result[0].id}; path=/; Secure; SameSite=Strict;`;
-
-        // Redirigir al home
+        localStorage.setItem('userId', result[0].id);
         window.location.href = "/";
     }
 });
