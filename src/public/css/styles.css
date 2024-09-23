@@ -339,3 +339,18 @@ body {
     background-position: right center;
     background-size: contain;
 }
+.chat-messages::-webkit-scrollbar {
+    width: 7px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background-color: #7a7a7a5b;;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background-color: #7a7a7a;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
