@@ -1,8 +1,10 @@
 let openChat = false;
+let chatId = null;
 const CONTENT_CHAT = document.querySelector(".chat-window");
 const WELCOME_MESSAGE = document.querySelector(".welcome-message");
 const userId = Number(localStorage.getItem("userId"));
 let chatList = document.querySelector(".chat-list");
+const socket = new WebSocket("ws://localhost:3200");
 
 function formatDate(date_) {
     const date = new Date(date_);        
@@ -72,7 +74,7 @@ async function getChats(userId) {
 
 async function getMessages(chatId) {
     try {
-        const request = await fetch("http://localhost:3000/messages/" + chatId )
+        const request = await fetch("http://localhost:3000/messages/" + chatId)
         const response = await request.json();
         return response;
     } catch (err) {
@@ -138,31 +140,34 @@ async function getLastMessage(chat_id) {
 document.addEventListener("DOMContentLoaded", async () => {
     const chats = await getChats(userId);
     chatList.innerHTML = "";
-    chats.forEach(async chat =>{
+    chats.forEach(async chat => {
         const last_message = await getLastMessage(chat.chat_id);
         if (last_message.length > 0) {
-            loadedLastMessage(false, chat, last_message)
+            loadedLastMessage(false, chat, last_message);
         } else {
-            loadedLastMessage(true, chat)
+            loadedLastMessage(true, chat);
         }        
         let chatItems = document.querySelectorAll(".chat-item");    
         chatItems.forEach((chatItem) => {
             chatItem.addEventListener("click", async (e) => {
                 openChat = true;
-                let chatId = chatItem.getAttribute("data-id");
+                chatId = chatItem.getAttribute("data-id");
                 let messages = await getMessages(chatId);
                 if (openChat) {
                     CONTENT_CHAT.style.display = "flex";            
                     let chat = e.target.closest(".chat-item");
                     showMessages(chat, messages);
                     let sendInput = CONTENT_CHAT.querySelector(".send-input");
-                    sendInput.addEventListener("keydown", async(e) => {
+                    sendInput.addEventListener("keydown", async (e) => {
                         if (e.key === "Enter") {
                             let messageText = sendInput.value;
                             if (messageText.trim() !== "") {
                                 const newMessage = await sendMessage(chatId, userId, messageText);
-                                console.log(newMessage);
-                                renderMessage(newMessage);
+                                socket.send(JSON.stringify({
+                                    id_chat: chatId,
+                                    id_sender: userId,
+                                    message: messageText
+                                }));                                
                                 sendInput.value = "";
                             }
                         }
@@ -171,5 +176,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         });
     });
-    
+});
+socket.addEventListener("message", (event) => {
+    const messageData = JSON.parse(event.data);
+    if (messageData.id_chat === chatId) {
+        renderMessage(messageData);
+    }
 });
