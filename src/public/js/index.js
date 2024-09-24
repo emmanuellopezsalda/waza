@@ -121,9 +121,33 @@ async function sendMessage(id_chat, id_sender, message) {
             })
         })
         const response = await request.json();
+        updateLastMessage(id_chat, response);
         return response;
     } catch (err) {
         console.error(err);
+    }
+}
+
+function updateLastMessage(chatId, lastMessage, date) {
+    const chatItem = chatList.querySelector(`.chat-item[data-id="${chatId}"]`);
+    if (chatItem) {
+        const chatItemContent = chatItem.querySelector(".chat-item-content");
+        const chatItemMessage = chatItemContent.querySelector(".chat-item-message");
+        const hourFormat = formatDate(date);        
+        if (chatItemMessage) {
+            chatItemMessage.querySelector("span").innerHTML = lastMessage.message;
+            chatItem.querySelector(".chat-item-time").innerHTML = hourFormat;
+        } else {
+            chatItemContent.innerHTML += `
+                <div class="chat-item-message">
+                    <span>${lastMessage.message}</span>
+                    <div class="message-status">
+                        <div class="checkmark"></div>
+                    </div>
+                </div>
+            `;
+            chatItem.querySelector(".chat-item-time").innerHTML = hourFormat;
+        }
     }
 }
 
@@ -177,9 +201,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     });
 });
-socket.addEventListener("message", (event) => {
+
+socket.addEventListener("message", async(event) => {
     const messageData = JSON.parse(event.data);
     if (messageData.id_chat === chatId) {
         renderMessage(messageData);
+        const last_message = await getLastMessage(messageData.id_chat);
+        const sent_at =last_message[0].sent_at;
+        updateLastMessage(messageData.id_chat, messageData, sent_at);
     }
 });
