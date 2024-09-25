@@ -24,28 +24,55 @@ function loadedLastMessage(empty, chat, last_message = null) {
                         <div class="chat-item-name">${chat.other_user_name}</div>
                         <div class="chat-item-time">10:30 PM</div>
                     </div>  
+                     <div class="chat-item-message">
+                            <span>Oe hableme</span>
+                            <div class="message-status">
+                                <div class="checkmark"></div>
+                            </div>
+                        </div>
                 </div>
+                
             </div>
             `;
-    } else {        
+    } else {
         const hourFormat = formatDate(last_message[0].sent_at);
-        chatList.innerHTML += `
-            <div class="chat-item" data-id="${chat.chat_id}">
-                <div class="profile-picture"></div>
-                <div class="chat-item-content">
-                    <div class="chat-item-header">
-                        <div class="chat-item-name">${chat.other_user_name}</div>
-                        <div class="chat-item-time">${hourFormat}</div>
-                    </div>  
-                    <div class="chat-item-message">
-                        <span>${last_message[0].message_text}</span>
-                        <div class="message-status">
-                            <div class="checkmark"></div>
+        if (last_message[0].id_sender === userId) {
+            chatList.innerHTML += `
+                <div class="chat-item" data-id="${chat.chat_id}">
+                    <div class="profile-picture"></div>
+                    <div class="chat-item-content">
+                        <div class="chat-item-header">
+                            <div class="chat-item-name">${chat.other_user_name}</div>
+                            <div class="chat-item-time">${hourFormat}</div>
+                        </div>  
+                        <div class="chat-item-message">
+                            <span>${last_message[0].message_text}</span>
+                            <div class="message-status">
+                                <div class="checkmark"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            `;
+                `;
+        } else {
+            chatList.innerHTML += `
+                <div class="chat-item" data-id="${chat.chat_id}">
+                    <div class="profile-picture"></div>
+                    <div class="chat-item-content">
+                        <div class="chat-item-header">
+                            <div class="chat-item-name">${chat.other_user_name}</div>
+                            <div class="chat-item-time">${hourFormat}</div>
+                        </div>  
+                        <div class="chat-item-message">
+                            <span>${last_message[0].message_text}</span>
+                            <div class="message-status">
+                                <div class="checkmark" style="opacity: 0;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+        }
     }
 }
 
@@ -61,6 +88,55 @@ function renderMessage(messageData) {
     }
     messageschat.appendChild(message);
 }
+
+function showMessages(chat, messages) {
+    if (chat) {
+        let chatContent = chat.querySelector(".chat-item-content");
+        let chatContentHeader = chatContent.querySelector(".chat-item-header");
+        let namechat = chatContentHeader.querySelector(".chat-item-name").innerHTML;
+        let chatOpenHeader = CONTENT_CHAT.querySelector(".chat-header");
+        let messageschat = CONTENT_CHAT.querySelector(".chat-messages");
+
+        messageschat.innerHTML = "";
+        messages.forEach(messageData => {
+            let message = document.createElement("div");
+            message.classList.add("message");
+            message.innerHTML = messageData.message_text;
+            if (userId === messageData.id_sender) {
+                message.classList.add("message-sent");                        
+            } else {
+                message.classList.add("message-received");
+            }
+            messageschat.appendChild(message);
+        });
+        messageschat.scrollTop = messageschat.scrollHeight;
+        let chatNameOpen = chatOpenHeader.querySelector(".chat-item-name-open");
+        chatNameOpen.innerHTML = namechat;
+        WELCOME_MESSAGE.style.display = "none";
+    }
+}
+
+function updateLastMessage(chatId, lastMessage, date) {
+    const chatItem = chatList.querySelector(`.chat-item[data-id="${chatId}"]`);
+    if (chatItem) {
+        const chatItemContent = chatItem.querySelector(".chat-item-content");
+        const chatItemMessage = chatItemContent.querySelector(".chat-item-message");
+        const hourFormat = formatDate(date);        
+        if (chatItemMessage) {
+            chatItemMessage.querySelector("span").innerHTML = lastMessage.message;
+            chatItem.querySelector(".chat-item-time").innerHTML = hourFormat;
+            const status = chatItemMessage.querySelector(".message-status");
+            if (lastMessage.id_sender == userId) {
+                status.querySelector(".checkmark").style.opacity = "1";
+            } else {
+                status.querySelector(".checkmark").style.opacity = "0";            }
+        } else {
+            chatItem.querySelector(".chat-item-time").innerHTML = hourFormat;
+        }
+        chatList.insertBefore(chatItem, chatList.firstChild);
+    }
+}
+
 
 async function getChats(userId) {
     try {
@@ -82,33 +158,6 @@ async function getMessages(chatId) {
     }
 }
 
-async function showMessages(chat, messages) {
-    if (chat) {
-        let chatContent = chat.querySelector(".chat-item-content");
-        let chatContentHeader = chatContent.querySelector(".chat-item-header");
-        let namechat = chatContentHeader.querySelector(".chat-item-name").innerHTML;
-        let chatOpenHeader = CONTENT_CHAT.querySelector(".chat-header");
-        let messageschat = CONTENT_CHAT.querySelector(".chat-messages");
-
-        messageschat.innerHTML = "";
-        messages.forEach(messageData => {
-            let message = document.createElement("div");
-            message.classList.add("message");
-            message.innerHTML = messageData.message_text;
-            if (userId === messageData.id_sender) {
-                message.classList.add("message-sent");                        
-            } else {
-                message.classList.add("message-received");
-            }
-            messageschat.appendChild(message);
-        });
-
-        let chatNameOpen = chatOpenHeader.querySelector(".chat-item-name-open");
-        chatNameOpen.innerHTML = namechat;
-        WELCOME_MESSAGE.style.display = "none";
-    }
-}
-
 async function sendMessage(id_chat, id_sender, message) {
     try {
         const request = await fetch("http://localhost:3000/messages", {
@@ -125,29 +174,6 @@ async function sendMessage(id_chat, id_sender, message) {
         return response;
     } catch (err) {
         console.error(err);
-    }
-}
-
-function updateLastMessage(chatId, lastMessage, date) {
-    const chatItem = chatList.querySelector(`.chat-item[data-id="${chatId}"]`);
-    if (chatItem) {
-        const chatItemContent = chatItem.querySelector(".chat-item-content");
-        const chatItemMessage = chatItemContent.querySelector(".chat-item-message");
-        const hourFormat = formatDate(date);        
-        if (chatItemMessage) {
-            chatItemMessage.querySelector("span").innerHTML = lastMessage.message;
-            chatItem.querySelector(".chat-item-time").innerHTML = hourFormat;
-        } else {
-            chatItemContent.innerHTML += `
-                <div class="chat-item-message">
-                    <span>${lastMessage.message}</span>
-                    <div class="message-status">
-                        <div class="checkmark"></div>
-                    </div>
-                </div>
-            `;
-            chatItem.querySelector(".chat-item-time").innerHTML = hourFormat;
-        }
     }
 }
 
