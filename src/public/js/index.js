@@ -16,65 +16,46 @@ function formatDate(date_) {
 
 function loadedLastMessage(empty, chat, last_message = null) {
     if (empty && last_message == null) {
-        chatList.innerHTML += `
-            <div class="chat-item" data-id="${chat.chat_id}">
+        chatList.innerHTML += 
+            `<div class="chat-item" data-id="${chat.chat_id}">
                 <div class="profile-picture"></div>
                 <div class="chat-item-content">
                     <div class="chat-item-header">
                         <div class="chat-item-name">${chat.other_user_name}</div>
                         <div class="chat-item-time">10:30 PM</div>
                     </div>  
-                     <div class="chat-item-message">
-                            <span>Oe hableme</span>
-                            <div class="message-status">
-                                <div class="checkmark"></div>
-                            </div>
+                    <div class="chat-item-message">
+                        <span>Oe hableme</span>
+                        <div class="message-status">
+                            <div class="checkmark"></div>
                         </div>
+                    </div>
                 </div>
-                
-            </div>
-            `;
-    } else {
+            </div>`;
+    } else if (last_message) {
         const hourFormat = formatDate(last_message[0].sent_at);
-        if (last_message[0].id_sender === userId) {
-            chatList.innerHTML += `
-                <div class="chat-item" data-id="${chat.chat_id}">
-                    <div class="profile-picture"></div>
-                    <div class="chat-item-content">
-                        <div class="chat-item-header">
-                            <div class="chat-item-name">${chat.other_user_name}</div>
-                            <div class="chat-item-time">${hourFormat}</div>
-                        </div>  
-                        <div class="chat-item-message">
-                            <span>${last_message[0].message_text}</span>
-                            <div class="message-status">
-                                <div class="checkmark"></div>
-                            </div>
+        const messageText = last_message[0].message_text;
+        const checkmarkOpacity = last_message[0].id_sender === userId ? "1" : "0";
+
+        chatList.innerHTML += 
+            `<div class="chat-item" data-id="${chat.chat_id}">
+                <div class="profile-picture"></div>
+                <div class="chat-item-content">
+                    <div class="chat-item-header">
+                        <div class="chat-item-name">${chat.other_user_name}</div>
+                        <div class="chat-item-time">${hourFormat}</div>
+                    </div>  
+                    <div class="chat-item-message">
+                        <span>${messageText}</span>
+                        <div class="message-status">
+                            <div class="checkmark" style="opacity: ${checkmarkOpacity};"></div>
                         </div>
                     </div>
                 </div>
-                `;
-        } else {
-            chatList.innerHTML += `
-                <div class="chat-item" data-id="${chat.chat_id}">
-                    <div class="profile-picture"></div>
-                    <div class="chat-item-content">
-                        <div class="chat-item-header">
-                            <div class="chat-item-name">${chat.other_user_name}</div>
-                            <div class="chat-item-time">${hourFormat}</div>
-                        </div>  
-                        <div class="chat-item-message">
-                            <span>${last_message[0].message_text}</span>
-                            <div class="message-status">
-                                <div class="checkmark" style="opacity: 0;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                `;
-        }
+            </div>`;
     }
 }
+
 
 function renderMessage(messageData) {
     const messageschat = CONTENT_CHAT.querySelector(".chat-messages");
@@ -179,54 +160,79 @@ async function sendMessage(id_chat, id_sender, message) {
 
 async function getLastMessage(chat_id) {
     try {
-        const request = await fetch("http://localhost:3000/messages/last_message/" + chat_id)
+        const request = await fetch("http://localhost:3000/messages/last_message/" + chat_id);
         const response = await request.json();
-        return response;
+
+        // Verifica que la respuesta tenga mensajes y registra en consola
+        console.log("Último mensaje del chat ID:", chat_id, response);
+
+        if (response.length > 0) {
+            return response; // Devuelve el último mensaje
+        } else {
+            return null; // No hay mensajes, devuelve null
+        }
     } catch (err) {
         console.error(err);
+        return null;
     }
 }
-
 document.addEventListener("DOMContentLoaded", async () => {
     const chats = await getChats(userId);
     chatList.innerHTML = "";
-    chats.forEach(async chat => {
+
+    const chatPromises = chats.map(async (chat) => {
         const last_message = await getLastMessage(chat.chat_id);
-        if (last_message.length > 0) {
-            loadedLastMessage(false, chat, last_message);
-        } else {
-            loadedLastMessage(true, chat);
-        }        
-        let chatItems = document.querySelectorAll(".chat-item");    
-        chatItems.forEach((chatItem) => {
-            chatItem.addEventListener("click", async (e) => {
-                openChat = true;
-                chatId = chatItem.getAttribute("data-id");
-                let messages = await getMessages(chatId);
-                if (openChat) {
-                    CONTENT_CHAT.style.display = "flex";            
-                    let chat = e.target.closest(".chat-item");
-                    showMessages(chat, messages);
-                    let sendInput = CONTENT_CHAT.querySelector(".send-input");
-                    sendInput.addEventListener("keydown", async (e) => {
-                        if (e.key === "Enter") {
-                            let messageText = sendInput.value;
-                            if (messageText.trim() !== "") {
-                                const newMessage = await sendMessage(chatId, userId, messageText);
-                                socket.send(JSON.stringify({
-                                    id_chat: chatId,
-                                    id_sender: userId,
-                                    message: messageText
-                                }));                                
-                                sendInput.value = "";
-                            }
+        return {
+            chat: chat,
+            last_message: last_message ? last_message[0] : null
+        };
+    });
+
+    const chatData = await Promise.all(chatPromises);
+
+    chatData.sort((a, b) => {
+        const dateA = a.last_message ? new Date(a.last_message.sent_at) : new Date(0);
+        const dateB = b.last_message ? new Date(b.last_message.sent_at) : new Date(0);
+        return dateB - dateA; 
+    });
+
+    chatData.forEach(({ chat, last_message }) => {
+        loadedLastMessage(!last_message, chat, last_message ? [last_message] : null);
+    });
+
+    let chatItems = document.querySelectorAll(".chat-item");
+    chatItems.forEach((chatItem) => {
+        chatItem.addEventListener("click", async (e) => {
+            openChat = true;
+            chatId = chatItem.getAttribute("data-id");
+            let messages = await getMessages(chatId);
+            if (openChat) {
+                CONTENT_CHAT.style.display = "flex";
+                let chat = e.target.closest(".chat-item");
+                showMessages(chat, messages);
+
+                let sendInput = CONTENT_CHAT.querySelector(".send-input");
+                sendInput.addEventListener("keydown", async (e) => {
+                    if (e.key === "Enter") {
+                        let messageText = sendInput.value;
+                        if (messageText.trim() !== "") {
+                            const newMessage = await sendMessage(chatId, userId, messageText);
+                            socket.send(JSON.stringify({
+                                id_chat: chatId,
+                                id_sender: userId,
+                                message: messageText
+                            }));
+                            sendInput.value = "";
                         }
-                    });
-                }
-            });
+                    }
+                });
+            }
         });
     });
 });
+
+
+
 
 socket.addEventListener("message", async(event) => {
     const messageData = JSON.parse(event.data);
