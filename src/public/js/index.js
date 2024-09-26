@@ -56,7 +56,6 @@ function loadedLastMessage(empty, chat, last_message = null) {
     }
 }
 
-
 function renderMessage(messageData) {
     const messageschat = CONTENT_CHAT.querySelector(".chat-messages");
     let message = document.createElement("div");
@@ -118,7 +117,6 @@ function updateLastMessage(chatId, lastMessage, date) {
     }
 }
 
-
 async function getChats(userId) {
     try {
         const request = await fetch("http://localhost:3000/chats/" + userId)
@@ -162,15 +160,7 @@ async function getLastMessage(chat_id) {
     try {
         const request = await fetch("http://localhost:3000/messages/last_message/" + chat_id);
         const response = await request.json();
-
-        // Verifica que la respuesta tenga mensajes y registra en consola
-        console.log("Último mensaje del chat ID:", chat_id, response);
-
-        if (response.length > 0) {
-            return response; // Devuelve el último mensaje
-        } else {
-            return null; // No hay mensajes, devuelve null
-        }
+        return response;
     } catch (err) {
         console.error(err);
         return null;
@@ -179,7 +169,6 @@ async function getLastMessage(chat_id) {
 document.addEventListener("DOMContentLoaded", async () => {
     const chats = await getChats(userId);
     chatList.innerHTML = "";
-
     const chatPromises = chats.map(async (chat) => {
         const last_message = await getLastMessage(chat.chat_id);
         return {
@@ -187,9 +176,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             last_message: last_message ? last_message[0] : null
         };
     });
-
     const chatData = await Promise.all(chatPromises);
-
     chatData.sort((a, b) => {
         const dateA = a.last_message ? new Date(a.last_message.sent_at) : new Date(0);
         const dateB = b.last_message ? new Date(b.last_message.sent_at) : new Date(0);
@@ -197,7 +184,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     chatData.forEach(({ chat, last_message }) => {
-        loadedLastMessage(!last_message, chat, last_message ? [last_message] : null);
+        if (!last_message) {
+            loadedLastMessage(true, chat, null);
+        } else {
+            loadedLastMessage(false, chat, [last_message]);
+        }    
     });
 
     let chatItems = document.querySelectorAll(".chat-item");
@@ -210,7 +201,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 CONTENT_CHAT.style.display = "flex";
                 let chat = e.target.closest(".chat-item");
                 showMessages(chat, messages);
-
                 let sendInput = CONTENT_CHAT.querySelector(".send-input");
                 sendInput.addEventListener("keydown", async (e) => {
                     if (e.key === "Enter") {
@@ -230,16 +220,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     });
 });
-
-
-
-
-socket.addEventListener("message", async(event) => {
+socket.addEventListener("message", async (event) => {
     const messageData = JSON.parse(event.data);
-    if (messageData.id_chat === chatId) {
+    const last_message = await getLastMessage(messageData.id_chat);
+    const sent_at = last_message[0].sent_at;
+    updateLastMessage(messageData.id_chat, messageData, sent_at);
+    if (messageData.id_chat === chatId && openChat) {
         renderMessage(messageData);
-        const last_message = await getLastMessage(messageData.id_chat);
-        const sent_at =last_message[0].sent_at;
-        updateLastMessage(messageData.id_chat, messageData, sent_at);
     }
 });
