@@ -355,3 +355,13 @@ body {
 .chat-messages::-webkit-scrollbar-track {
     background: transparent;
 }
+.unseen {
+    width: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: auto;
+    background-color: green;
+    border-radius: 50%;
+
+}

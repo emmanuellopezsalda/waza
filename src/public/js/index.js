@@ -1,5 +1,8 @@
 let openChat = false;
 let chatId = null;
+let seen = false;
+let notiMessage = {};
+let num = 1;
 const CONTENT_CHAT = document.querySelector(".chat-window");
 const WELCOME_MESSAGE = document.querySelector(".welcome-message");
 const userId = Number(localStorage.getItem("userId"));
@@ -32,7 +35,7 @@ function loadedLastMessage(empty, chat, last_message = null) {
                     </div>
                 </div>
             </div>`;
-    } else if (last_message) {
+    } else if (last_message ) {
         const hourFormat = formatDate(last_message[0].sent_at);
         const messageText = last_message[0].message_text;
         const checkmarkOpacity = last_message[0].id_sender === userId ? "1" : "0";
@@ -47,6 +50,7 @@ function loadedLastMessage(empty, chat, last_message = null) {
                     </div>  
                     <div class="chat-item-message">
                         <span>${messageText}</span>
+                        <div class="unseen">0</div>
                         <div class="message-status">
                             <div class="checkmark" style="opacity: ${checkmarkOpacity};"></div>
                         </div>
@@ -96,7 +100,7 @@ function showMessages(chat, messages) {
     }
 }
 
-function updateLastMessage(chatId, lastMessage, date) {
+function updateLastMessage(chatId, lastMessage, date, notiMessage) {
     const chatItem = chatList.querySelector(`.chat-item[data-id="${chatId}"]`);
     if (chatItem) {
         const chatItemContent = chatItem.querySelector(".chat-item-content");
@@ -109,7 +113,8 @@ function updateLastMessage(chatId, lastMessage, date) {
             if (lastMessage.id_sender == userId) {
                 status.querySelector(".checkmark").style.opacity = "1";
             } else {
-                status.querySelector(".checkmark").style.opacity = "0";            }
+                status.querySelector(".checkmark").style.opacity = "0";            
+            }
         } else {
             chatItem.querySelector(".chat-item-time").innerHTML = hourFormat;
         }
@@ -166,6 +171,7 @@ async function getLastMessage(chat_id) {
         return null;
     }
 }
+
 document.addEventListener("DOMContentLoaded", async () => {
     const chats = await getChats(userId);
     chatList.innerHTML = "";
@@ -224,8 +230,20 @@ socket.addEventListener("message", async (event) => {
     const messageData = JSON.parse(event.data);
     const last_message = await getLastMessage(messageData.id_chat);
     const sent_at = last_message[0].sent_at;
-    updateLastMessage(messageData.id_chat, messageData, sent_at);
+
     if (messageData.id_chat === chatId && openChat) {
+        seen = true;
         renderMessage(messageData);
+    } else if (!openChat) {
+        seen = false;
+        if (notiMessage[messageData.id_chat]) {
+            notiMessage[messageData.id_chat]++;
+        } else {
+            notiMessage[messageData.id_chat] = num++;
+        }
     }
+
+    const notiArray = Object.entries(notiMessage).map(([id_chat, count]) => [id_chat, count]);
+
+    updateLastMessage(messageData.id_chat, messageData, sent_at, notiArray);
 });
