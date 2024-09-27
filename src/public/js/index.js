@@ -50,8 +50,8 @@ function loadedLastMessage(empty, chat, last_message = null) {
                     </div>  
                     <div class="chat-item-message">
                         <span>${messageText}</span>
-                        <div class="unseen">0</div>
                         <div class="message-status">
+                            <div class="unread-count">2</div>
                             <div class="checkmark" style="opacity: ${checkmarkOpacity};"></div>
                         </div>
                     </div>
@@ -102,10 +102,11 @@ function showMessages(chat, messages) {
 
 function updateLastMessage(chatId, lastMessage, date, notiMessage) {
     const chatItem = chatList.querySelector(`.chat-item[data-id="${chatId}"]`);
+    let messageschat = CONTENT_CHAT.querySelector(".chat-messages");
     if (chatItem) {
         const chatItemContent = chatItem.querySelector(".chat-item-content");
         const chatItemMessage = chatItemContent.querySelector(".chat-item-message");
-        const hourFormat = formatDate(date);        
+        const hourFormat = formatDate(date);                
         if (chatItemMessage) {
             chatItemMessage.querySelector("span").innerHTML = lastMessage.message;
             chatItem.querySelector(".chat-item-time").innerHTML = hourFormat;
@@ -119,6 +120,7 @@ function updateLastMessage(chatId, lastMessage, date, notiMessage) {
             chatItem.querySelector(".chat-item-time").innerHTML = hourFormat;
         }
         chatList.insertBefore(chatItem, chatList.firstChild);
+        messageschat.scrollTop = messageschat.scrollHeight;
     }
 }
 
@@ -132,9 +134,9 @@ async function getChats(userId) {
     }
 }
 
-async function getMessages(chatId) {
+async function getMessages(chatId, userId) {
     try {
-        const request = await fetch("http://localhost:3000/messages/" + chatId)
+        const request = await fetch("http://localhost:3000/messages/chat/" + chatId + "/user/" + userId)
         const response = await request.json();
         return response;
     } catch (err) {
@@ -161,10 +163,12 @@ async function sendMessage(id_chat, id_sender, message) {
     }
 }
 
-async function getLastMessage(chat_id) {
+async function getLastMessage(chat_id, userId) {
     try {
-        const request = await fetch("http://localhost:3000/messages/last_message/" + chat_id);
+        const request = await fetch(`http://localhost:3000/messages/last_message/${chat_id}/user/${userId}`);
         const response = await request.json();
+        console.log(response);
+        
         return response;
     } catch (err) {
         console.error(err);
@@ -172,14 +176,31 @@ async function getLastMessage(chat_id) {
     }
 }
 
+async function markMessagesSeen(id_chat, id_sender) {
+    try {
+        const request = await fetch("http://localhost:3000/messages", {
+            method: "PUT",
+            headers: {"content-type": "application/json"},
+            body: JSON.stringify({
+                id_chat,
+                id_sender
+            })
+        })
+        const response = await request.json();
+        return response;
+    } catch (error) {
+        console.error(error);
+    }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     const chats = await getChats(userId);
     chatList.innerHTML = "";
     const chatPromises = chats.map(async (chat) => {
-        const last_message = await getLastMessage(chat.chat_id);
+        const last_message = await getLastMessage(chat.chat_id, userId);
         return {
             chat: chat,
-            last_message: last_message ? last_message[0] : null
+            last_message: last_message ? last_message[0][0] : null
         };
     });
     const chatData = await Promise.all(chatPromises);
@@ -201,16 +222,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     chatItems.forEach((chatItem) => {
         chatItem.addEventListener("click", async (e) => {
             openChat = true;
-            chatId = chatItem.getAttribute("data-id");
-            let messages = await getMessages(chatId);
+            chatId = chatItem.getAttribute("data-id");            
+            let messages = await getMessages(chatId, userId);
             if (openChat) {
                 CONTENT_CHAT.style.display = "flex";
+                let markSeen = await markMessagesSeen(chatId, messages[0].other_user_id);            
                 let chat = e.target.closest(".chat-item");
-                showMessages(chat, messages);
+                showMessages(chat, messages);                
                 let sendInput = CONTENT_CHAT.querySelector(".send-input");
-                sendInput.addEventListener("keydown", async (e) => {
+                let newSendInput = sendInput.cloneNode(true);
+                sendInput.parentNode.replaceChild(newSendInput, sendInput);
+                newSendInput.addEventListener("keydown", async (e) => {
                     if (e.key === "Enter") {
-                        let messageText = sendInput.value;
+                        let messageText = newSendInput.value;
                         if (messageText.trim() !== "") {
                             const newMessage = await sendMessage(chatId, userId, messageText);
                             socket.send(JSON.stringify({
@@ -218,19 +242,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 id_sender: userId,
                                 message: messageText
                             }));
-                            sendInput.value = "";
+                            newSendInput.value = "";
                         }
                     }
                 });
             }
         });
+        
     });
 });
 socket.addEventListener("message", async (event) => {
     const messageData = JSON.parse(event.data);
-    const last_message = await getLastMessage(messageData.id_chat);
-    const sent_at = last_message[0].sent_at;
-
+    const last_message = await getLastMessage(messageData.id_chat, userId);
+    const sent_at = last_message[0][0].sent_at;
     if (messageData.id_chat === chatId && openChat) {
         seen = true;
         renderMessage(messageData);
