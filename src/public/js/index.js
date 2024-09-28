@@ -52,7 +52,7 @@ function loadedLastMessage(empty, chat, last_message = null, unread_count = []) 
                         <div class="chat-item-message">
                             <span>${messageText}</span>
                             <div class="message-status">
-                                <div class="unread-count" style="opacity: 1">${unread_count[0].unread_messages_count}</div>
+                                <div class="unread-count" style="display:"flex">${unread_count[0].unread_messages_count}</div>
                                 <div class="checkmark" style="opacity: 0"></div>
                             </div>
                         </div>
@@ -70,7 +70,7 @@ function loadedLastMessage(empty, chat, last_message = null, unread_count = []) 
                         <div class="chat-item-message">
                             <span>${messageText}</span>
                             <div class="message-status">
-                                <div class="unread-count" style="opacity: 0">${unread_count[0].unread_messages_count}</div>
+                                <div class="unread-count" style="display: none">${unread_count[0].unread_messages_count}</div>
                                 <div class="checkmark" style="opacity: ${checkmarkOpacity};"></div>
                             </div>
                         </div>
@@ -120,7 +120,7 @@ function showMessages(chat, messages) {
     }
 }
 
-function updateLastMessage(chatId, lastMessage, date, notiArray, unread_count) {
+function updateLastMessage(chatId, lastMessage, date) {
     const chatItem = chatList.querySelector(`.chat-item[data-id="${chatId}"]`);
     let messageschat = CONTENT_CHAT.querySelector(".chat-messages");
 
@@ -136,13 +136,13 @@ function updateLastMessage(chatId, lastMessage, date, notiArray, unread_count) {
             const status = chatItemMessage.querySelector(".message-status");
             if (lastMessage.id_sender == userId) {
                 status.querySelector(".checkmark").style.opacity = "1";
-                unreadMessages.style.opacity = "0";
+                unreadMessages.style.display = "none";
             } else {
                 status.querySelector(".checkmark").style.opacity = "0";
                 let currentUnreadCount = unreadMessages.innerHTML ? parseInt(unreadMessages.innerHTML) : 0;
                 let totalUnread = currentUnreadCount + 1;
                 unreadMessages.innerHTML = totalUnread;
-                unreadMessages.style.opacity = "1";
+                unreadMessages.style.display = "flex";
             }            
         } else {
             chatItem.querySelector(".chat-item-time").innerHTML = hourFormat;
@@ -154,6 +154,14 @@ function updateLastMessage(chatId, lastMessage, date, notiArray, unread_count) {
     }
 }
 
+function deleteCount(chat) {
+    let chatItemContent = chat.querySelector(".chat-item-content");
+    let chatItemMessage = chatItemContent.querySelector(".chat-item-message");
+    let messageStatus = chatItemMessage.querySelector(".message-status");
+    let unread_count = messageStatus.querySelector(".unread-count");
+    unread_count.style.display = "none";
+    unread_count.innerHTML = "";
+}
 
 async function getChats(userId) {
     try {
@@ -259,6 +267,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 CONTENT_CHAT.style.display = "flex";
                 let markSeen = await markMessagesSeen(chatId, messages[0].other_user_id);            
                 let chat = e.target.closest(".chat-item");
+                deleteCount(chat);
                 showMessages(chat, messages);                
                 let sendInput = CONTENT_CHAT.querySelector(".send-input");
                 let newSendInput = sendInput.cloneNode(true);
@@ -284,24 +293,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 socket.addEventListener("message", async (event) => {
     const messageData = JSON.parse(event.data);
-    const last_message = await getLastMessage(messageData.id_chat, userId);
-    console.log(last_message);
-    
+    const last_message = await getLastMessage(messageData.id_chat, userId);    
     const sent_at = last_message[0][0].sent_at;
     if (messageData.id_chat === chatId && openChat) {
         seen = true;
         renderMessage(messageData);
-    } else if (!openChat) {
-        seen = false;
-        if (notiMessage[messageData.id_chat]) {
-            notiMessage[messageData.id_chat]++;
-        } else {
-            notiMessage[messageData.id_chat] = num++;
-        }
-    }
-
-    const notiArray = Object.entries(notiMessage).map(([id_chat, count]) => [id_chat, count]);
-    console.log(notiArray);
-    
+    }    
     updateLastMessage(messageData.id_chat, messageData, sent_at);
 });
