@@ -81,9 +81,15 @@ function renderMessage(messageData) {
     const messageschat = CONTENT_CHAT.querySelector(".chat-messages");
     let message = document.createElement("div");
     message.classList.add("message");
-    message.innerHTML = messageData.message;
+    message.innerHTML = messageData.message;    
     if (userId === messageData.id_sender) {
-        message.classList.add("message-sent");                        
+        message.classList.add("message-sent");  
+        if (messageData.id_status == 1) {
+            alert("hola")
+            let messageStatus = document.createElement("span");
+            messageStatus.classList.add("message-status-open");
+            message.appendChild(messageStatus);
+        }                       
     } else {
         message.classList.add("message-received");
     }
@@ -104,7 +110,12 @@ function showMessages(chat, messages) {
             message.classList.add("message");
             message.innerHTML = messageData.message_text;
             if (userId === messageData.id_sender) {
-                message.classList.add("message-sent");                        
+                message.classList.add("message-sent");
+                if (messageData.id_status == 1) {
+                    let messageStatus = document.createElement("span");
+                    messageStatus.classList.add("message-status-open");
+                    message.appendChild(messageStatus);
+                }                        
             } else {
                 message.classList.add("message-received");
             }
@@ -296,6 +307,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 socket.addEventListener("message", async (event) => {
     const messageData = JSON.parse(event.data);
+    console.log(messageData);
+    
     const last_message = await getLastMessage(messageData.id_chat, userId);    
     const sent_at = last_message[0][0].sent_at;
     if (messageData.id_chat === chatId && openChat) {
