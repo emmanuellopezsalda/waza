@@ -1,8 +1,5 @@
 let openChat = false;
 let chatId = null;
-let seen = false;
-let notiMessage = {};
-let num = 1;
 const CONTENT_CHAT = document.querySelector(".chat-window");
 const WELCOME_MESSAGE = document.querySelector(".welcome-message");
 const userId = Number(localStorage.getItem("userId"));
@@ -120,7 +117,7 @@ function showMessages(chat, messages) {
     }
 }
 
-function updateLastMessage(chatId, lastMessage, date) {
+async function updateLastMessage(chatId, lastMessage, date) {
     const chatItem = chatList.querySelector(`.chat-item[data-id="${chatId}"]`);
     let messageschat = CONTENT_CHAT.querySelector(".chat-messages");
 
@@ -134,15 +131,21 @@ function updateLastMessage(chatId, lastMessage, date) {
             chatItemMessage.querySelector("span").innerHTML = lastMessage.message;
             chatItem.querySelector(".chat-item-time").innerHTML = hourFormat;
             const status = chatItemMessage.querySelector(".message-status");
+            console.log(lastMessage.id_sender == userId)
             if (lastMessage.id_sender == userId) {
                 status.querySelector(".checkmark").style.opacity = "1";
-                unreadMessages.style.display = "none";
             } else {
                 status.querySelector(".checkmark").style.opacity = "0";
-                let currentUnreadCount = unreadMessages.innerHTML ? parseInt(unreadMessages.innerHTML) : 0;
-                let totalUnread = currentUnreadCount + 1;
-                unreadMessages.innerHTML = totalUnread;
-                unreadMessages.style.display = "flex";
+                if (openChat) {
+                    let messages = await getMessages(chatId, userId);
+                    await markMessagesSeen(chatId, messages[0].other_user_id);            
+                    deleteCount(chatItem);
+                } else {
+                    let currentUnreadCount = unreadMessages.innerHTML ? parseInt(unreadMessages.innerHTML) : 0;
+                    let totalUnread = currentUnreadCount + 1;
+                    unreadMessages.innerHTML = totalUnread;
+                    unreadMessages.style.display = "flex";
+                }
             }            
         } else {
             chatItem.querySelector(".chat-item-time").innerHTML = hourFormat;
@@ -296,8 +299,7 @@ socket.addEventListener("message", async (event) => {
     const last_message = await getLastMessage(messageData.id_chat, userId);    
     const sent_at = last_message[0][0].sent_at;
     if (messageData.id_chat === chatId && openChat) {
-        seen = true;
         renderMessage(messageData);
-    }    
+    }
     updateLastMessage(messageData.id_chat, messageData, sent_at);
 });
