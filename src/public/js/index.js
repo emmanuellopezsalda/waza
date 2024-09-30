@@ -15,7 +15,6 @@ function formatDate(date_) {
 }
 
 function loadedLastMessage(empty, chat, last_message = null, unread_count = []) {
-    console.log(unread_count);
     if (empty && last_message == null) {
         chatList.innerHTML += 
             `<div class="chat-item" data-id="${chat.chat_id}">
@@ -83,13 +82,7 @@ function renderMessage(messageData) {
     message.classList.add("message");
     message.innerHTML = messageData.message;    
     if (userId === messageData.id_sender) {
-        message.classList.add("message-sent");  
-        if (messageData.id_status == 1) {
-            alert("hola")
-            let messageStatus = document.createElement("span");
-            messageStatus.classList.add("message-status-open");
-            message.appendChild(messageStatus);
-        }                       
+        message.classList.add("message-sent");                        
     } else {
         message.classList.add("message-received");
     }
@@ -142,7 +135,6 @@ async function updateLastMessage(chatId, lastMessage, date) {
             chatItemMessage.querySelector("span").innerHTML = lastMessage.message;
             chatItem.querySelector(".chat-item-time").innerHTML = hourFormat;
             const status = chatItemMessage.querySelector(".message-status");
-            console.log(lastMessage.id_sender == userId)
             if (lastMessage.id_sender == userId) {
                 status.querySelector(".checkmark").style.opacity = "1";
             } else {
@@ -220,7 +212,6 @@ async function getLastMessage(chat_id, userId) {
     try {
         const request = await fetch(`http://localhost:3000/messages/last_message/${chat_id}/user/${userId}`);
         const response = await request.json();
-        console.log(response);
         return response;
     } catch (err) {
         console.error(err);
@@ -307,12 +298,24 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 socket.addEventListener("message", async (event) => {
     const messageData = JSON.parse(event.data);
-    console.log(messageData);
-    
     const last_message = await getLastMessage(messageData.id_chat, userId);    
     const sent_at = last_message[0][0].sent_at;
     if (messageData.id_chat === chatId && openChat) {
         renderMessage(messageData);
     }
     updateLastMessage(messageData.id_chat, messageData, sent_at);
+
+    if (last_message[0][0].id_status === 1) {
+        const messageElements = CONTENT_CHAT.querySelectorAll(".message");
+        messageElements.forEach((msgElem) => {
+            if (msgElem.textContent.includes(messageData.message)) {
+                let messageStatus = msgElem.querySelector(".message-status-open");
+                if (!messageStatus) {
+                    messageStatus = document.createElement("span");
+                    messageStatus.classList.add("message-status-open");
+                    msgElem.appendChild(messageStatus);
+                }
+            }
+        });
+    }
 });
